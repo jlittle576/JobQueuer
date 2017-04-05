@@ -1,32 +1,5 @@
-
-var set var=.OCDreleaseNumber         str="1.5"
-var set var=.OCDreleaseDate           str="22-Sep-2015"
-
-if c=(eval( FILE_EXISTS('C:/Users/Joe/Dropbox/code/scratch/sU_temp_static')))    ! local build (for joe)
-
-	var set var=.OCDdir                   str="C:/Users/Joe/Dropbox/code/projects/queuer/"
-	var set var=.OCDdir_local             str="C:/Users/Joe/Dropbox/code/projects/queuer/","C:/Users/Joe/Dropbox/code/projects/queuer/"
-	var set var=.Implant_Library_Hip_dir  str="C:/OO_Production/Implant_Library_Hip/"
-	var set var=.Implant_Library_Knee_dir str="C:/OO_Production/Implant_Library_Knee/"
-
-else																			! normal production build
-
-	var set var=.OCDdir                   str="//DATASERVER/kdev_que_1/"
-	var set var=.OCDdir_local             str="//DATASERVER/kdev_que_1/","U:/"
-	var set var=.Implant_Library_Hip_dir  str="//DATASERVER/OO_Production/Implant_Library_Hip/"
-	var set var=.Implant_Library_Knee_dir str="//DATASERVER/OO_Production/Implant_Library_Knee/"
-	
-end
-
-var set var=.LocalTempFolder		  str="C:/Temp/"
-var set var=.ffmepgFile 			  str="C:/ffmpeg.exe"
-
-file command read file=(eval( .OCDdir // "source_KNEE/macros/OCDL_Load.cmd" ))
-model cre mod=.MOD
-ocd disp panel=runModel
-
 ! suppress alerts
-var set var = .ocdl.suppress_alerts int = 1
+var set var = .ocdl.suppress_alerts int = 0
 	
 !debug tools for joe
 if c=0!( FILE_EXISTS( GETCWD()//'/adams_joe_debug.command') || FILE_EXISTS('C:/Users/Joe/Dropbox/code/scratch') )
@@ -38,6 +11,7 @@ if c=0!( FILE_EXISTS( GETCWD()//'/adams_joe_debug.command') || FILE_EXISTS('C:/U
 end	
 
 if c=(FILE_EXISTS( GETCWD()//'/adams_spoof_run.command' ))
+	var set var = .ocdl.suppress_alerts int = 1
 
 	var set var = .gui.py int= (eval(run_python_code("import time")))
 	var set var = .gui.py int= (eval(run_python_code("time.sleep(10)")))
@@ -45,6 +19,7 @@ if c=(FILE_EXISTS( GETCWD()//'/adams_spoof_run.command' ))
 	quit
 
 elseif c=(FILE_EXISTS( GETCWD()//'/adams_run_que.command' ))
+	var set var = .ocdl.suppress_alerts int = 1
 
 	var set var = .gui.py int= (eval(run_python_code("import glob, os, aview_main")))
 	var set var = .gui.py int= (eval(run_python_code("fIn=open('ocdjoblist.csv').read()")))
