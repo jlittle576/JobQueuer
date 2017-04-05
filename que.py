@@ -1,39 +1,13 @@
 import sys, os, shutil, glob, copy, time, datetime, inspect, re, random, math
 from collections import OrderedDict
 from dateutil import tz
+from constants import *
 
-# job status definitions
-QUEUED = 'QUEUED'
-RUNNING = 'RUNNING'
-COMPLETE = 'COMPLETE'
-FAILED = 'FAILED'
-WAITING_FOR_TRANSFER_COMPLETION = 'WAITING_FOR_TRANSFER_COMPLETION'
 
-# run modes
-RUN_TEST = 'RUN_TEST'
-RUN_TEST_STATIC = 'RUN_TEST_STATIC'
-RUN_TEST_TRANSFER_WAIT = 'RUN_TEST_TRANSFER_WAIT'
-RUN_PROD = 'RUN_PROD'
-
-# run settings
-SPOOF_SINGLE = 'SPOOF_SINGLE'
-SPOOF_DOE = 'SPOOF_DOE'
-SPOOF_RUN_TIME = 8
-RUN_SINGLE = 'RUN_SINGLE'
-RUN_DOE = 'RUN_DOE'
-
-DOE_COMPLETE_STRING = 'RUNSTUDY COMPLETE'
-SINGLE_COMPLETE_STRING = 'Information: Model creation complete'
-
-# feature test
-TEST_TRANSFER_WAIT = False
-TEST_QUE_MOD = False
-TEST_QUE_ADD = False
-
-# setup
+# setup sentinels
 RUN_MODE = RUN_DOE
 RETURN_TO_QUE = False
-FILE_TRANSFER_WAIT_TIME = 10  # time in seconds to wait *after* last file write/modification time
+FILE_TRANSFER_WAIT_TIME = 10
 # QUE_TOP_DIR = '//192.168.10.254/kdev_que_1/' #
 
 
@@ -50,9 +24,9 @@ if os.path.isdir('C:/Users/Joe/Dropbox/code/projects'):   # like, omg, super adv
     #
     # TEST_TRANSFER_WAIT = True
     # TEST_QUE_MOD = True
-    #
-    # RUN_MODE = RUN_DOE
-    # RETURN_TO_QUE = True
+    ADAMS_START_LIMIT = 5
+    # RUN_MODE = SPOOF_DOE
+    RETURN_TO_QUE = True
     # DOE_COMPLETE_STRING = SINGLE_COMPLETE_STRING
     FILE_TRANSFER_WAIT_TIME = 2
     # TEST_QUE_ADD = False
@@ -81,7 +55,7 @@ def log(msg):
 def fl_get(term):
     return slash_fix(glob.glob(term))
 
-def initialize():
+def main():
 
     # -- path setup --
 
@@ -364,6 +338,7 @@ class Job(object):
         self.fol_name = os.path.basename(self.path)
         self.stat_path = model_dir + '/que.stat'
         self.status = 'INITIALIZED'
+        self.substatus = None
         self.fol_size = 0
         self.time_of_last_size_change = 0
         self.last_transfer_status_msg_time = datetime.datetime.utcnow()
@@ -390,7 +365,7 @@ class Job(object):
         for fl in glob.glob('./*command'):
             os.remove(fl)
 
-        self.set_status(RUNNING)
+        self.set_status(RUNNING, WAITING_FOR_ADAMS_START)
 
         f_write('ocdjoblist.csv', '#,Name\n1,' + self.pat_name)
         f_write('ocdrunlist.txt', '1')
@@ -469,6 +444,24 @@ class Job(object):
             new_res_fol_m_time = os.path.getmtime(new_res_fol)
             if new_res_fol_m_time > self.submit_time:
                 self.res_folder = new_res_fol
+                self.set_status(RUNNING, MONITORING_ADAMS_LOG)
+
+
+
+        self.timeouts = [(WAITING_FOR_ADAMS_START, ADAMS_START_LIMIT, 'Adams failed to start and/or initialize %(secs_since)s, please check for model/license issues'),
+                         (MONITORING_ADAMS_LOG, 60*60, 'Terminating adams run, failed to complete after %(mins_since)s, please check OCD log for issues')]
+
+        for condition, limit, timeout_msg in self.timeouts:
+            if self.substatus == condition:
+                secs_since = seconds_since(self.substatus_time)
+                mins_since = secs_since / 60.0
+                if secs_since > limit:
+                    kill_adams()
+                    log(timeout_msg % locals())
+                    log('Killing Adams')
+                    self.set_status(FAILED, TIMED_OUT)
+                    return True
+
 
         # ts_old = self.prev_res_fol.split('model_')[1]
         # ts_new = new_res_fol.split('model_')[1]
@@ -503,7 +496,7 @@ class Job(object):
 
         return False
 
-    def set_status(self, status):
+    def set_status(self, status, substatus=None):
         old_status = copy.copy(self.status)
 
         job_info = 'status:%s\n' % self.status
@@ -516,20 +509,25 @@ class Job(object):
         if status in [WAITING_FOR_TRANSFER_COMPLETION]:
             msg += ' (folder size increased %s secs ago, waiting for %s)' % (int(self.secs_since_filesize_change), FILE_TRANSFER_WAIT_TIME)
 
+        # time_since_last_transfer_status_update = int((time_now() - self.last_transfer_status_msg_time).total_seconds())
 
-        time_since_last_transfer_status_update = int((datetime.datetime.utcnow() - self.last_transfer_status_msg_time).total_seconds())
-
-        # print '}?}:', time_since_last_transfer_status_update
-        if not (status in [self.status]):
-            self.last_transfer_status_msg_time = datetime.datetime.utcnow()
+        if status is not self.status:
+            self.last_transfer_status_msg_time = datetime.datetime.now()
             self.status = status
+            self.status_time = time_now()
             f_write(self.path+'/que.stat', job_info)
 
             log(msg)
 
-        elif time_since_last_transfer_status_update > 10:
-            self.last_transfer_status_msg_time = datetime.datetime.utcnow()
+        if substatus is not self.substatus:
+            self.substatus = substatus
+            self.substatus_time = time_now()
+
             log(msg)
+
+        # elif time_since_last_transfer_status_update > 10:
+        #     self.last_transfer_status_msg_time = datetime.datetime.now()
+        #     log(msg)
 
         # ToDo: Periodic updates about trandser wait time
 
@@ -537,6 +535,14 @@ class Job(object):
 
 
 
+def time_now():
+    return datetime.datetime.now()
+
+def get_epoch():
+    datetime.datetime.now()
+
+def seconds_since(dt):
+    return (datetime.datetime.now() - dt).total_seconds()
 
 def f_add(path, text):
     vars = inspect.stack()[1][0].f_locals
@@ -596,4 +602,4 @@ def slash_fix(paths):
         return new_paths
 
 if __name__ == '__main__':
-    initialize()
+    main()
