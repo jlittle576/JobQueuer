@@ -68,13 +68,18 @@ class StartQT4(QtGui.QMainWindow):
         self.ui.list_order.LineWrapMode = 0
         self.ui.list_order.itemClicked.connect(self.on_list_modify)
 
-        self.ui.btn_mark_single.clicked.connect(self.mark_single)
-        self.ui.btn_mark_full.clicked.connect(self.mark_full)
 
         self.ui.btn_up.clicked.connect(self.btn_up)
         self.ui.btn_down.clicked.connect(self.btn_down)
         self.ui.btn_top.clicked.connect(self.btn_top)
         self.ui.btn_bottom.clicked.connect(self.btn_bottom)
+
+        self.ui.btn_mark_single.clicked.connect(self.mark_single)
+        self.ui.btn_mark_full.clicked.connect(self.mark_full)
+        self.ui.btn_mark_nocp.clicked.connect(self.mark_nocp)
+        self.ui.btn_mark_wcp.clicked.connect(self.mark_wcp)
+        self.ui.btn_reque.clicked.connect(self.return_to_que)
+
 
         self.ui.btn_refresh.clicked.connect(self.refresh_from_file)
         self.ui.btn_stop.clicked.connect(self.stop_que)
@@ -97,6 +102,11 @@ class StartQT4(QtGui.QMainWindow):
         path = self.que.get(self.ui.list_order.currentItem()).path
         open_explorer(path)
 
+    def return_to_que(self):
+        cmd = 'reque:%s' % os.path.basename(self.selected_job.short_path())
+        print cmd
+        f_write('que.commands', cmd)
+
     def btn_up(self):
         self.que.export_que_modifications(self.active_job, -1)
 
@@ -110,12 +120,26 @@ class StartQT4(QtGui.QMainWindow):
         self.que.export_que_modifications(self.active_job, -1, absolute=True)
 
     def mark_single(self):
-        self.que.get(self.ui.list_order.currentItem()).run_type = 'Single'
+        job = self.que.get(self.ui.list_order.currentItem())
+        job.run_type = SINGLE_WCP if 'wcp' in job.run_type.lower() else SINGLE_NOCP
         self.refresh_internal()
         self.que.export_que_modifications()
 
     def mark_full(self):
-        self.que.get(self.ui.list_order.currentItem()).run_type = 'Full'
+        job = self.que.get(self.ui.list_order.currentItem())
+        job.run_type = FULL_WCP if 'wcp' in job.run_type.lower() else FULL_NOCP
+        self.refresh_internal()
+        self.que.export_que_modifications()
+
+    def mark_nocp(self):
+        job = self.que.get(self.ui.list_order.currentItem())
+        job.run_type = SINGLE_NOCP if 'single' in job.run_type.lower() else FULL_NOCP
+        self.refresh_internal()
+        self.que.export_que_modifications()
+
+    def mark_wcp(self):
+        job = self.que.get(self.ui.list_order.currentItem())
+        job.run_type = SINGLE_WCP if 'single' in job.run_type.lower() else FULL_WCP
         self.refresh_internal()
         self.que.export_que_modifications()
 
@@ -133,6 +157,8 @@ class StartQT4(QtGui.QMainWindow):
         os.system('start python ./Source_Queuer/que.py')
 
     def on_list_modify(self):
+
+        self.selected_job = self.que.get(self.ui.list_order.currentItem())
 
         # job specific (de)activations
         self.active_job = self.que.get(self.ui.list_order.currentItem())
@@ -297,7 +323,7 @@ class StartQT4(QtGui.QMainWindow):
         self.refresh_internal()
 
     def refresh_internal(self):
-        self.quelist_selected_job = self.que.get(self.ui.list_order.currentItem())
+        self.selected_job = self.que.get(self.ui.list_order.currentItem())
         self.ui.list_order.clear()
         for job in self.que:
 
@@ -309,7 +335,7 @@ class StartQT4(QtGui.QMainWindow):
 
             item = QListWidgetItem(job.label)
             self.ui.list_order.addItem(item)
-            if self.quelist_selected_job == job:
+            if self.selected_job == job:
                 self.ui.list_order.setCurrentItem(item)
                 self.active_item = job
                 # item.setBackground(QColor.blue)

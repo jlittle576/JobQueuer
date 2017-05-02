@@ -27,7 +27,7 @@
    <property name="geometry">
     <rect>
      <x>720</x>
-     <y>60</y>
+     <y>50</y>
      <width>91</width>
      <height>23</height>
     </rect>
@@ -40,7 +40,7 @@
    <property name="geometry">
     <rect>
      <x>720</x>
-     <y>90</y>
+     <y>70</y>
      <width>91</width>
      <height>23</height>
     </rect>
@@ -53,7 +53,7 @@
    <property name="geometry">
     <rect>
      <x>720</x>
-     <y>390</y>
+     <y>400</y>
      <width>91</width>
      <height>23</height>
     </rect>
@@ -66,7 +66,7 @@
    <property name="geometry">
     <rect>
      <x>720</x>
-     <y>210</y>
+     <y>230</y>
      <width>91</width>
      <height>23</height>
     </rect>
@@ -92,7 +92,7 @@
    <property name="geometry">
     <rect>
      <x>720</x>
-     <y>120</y>
+     <y>90</y>
      <width>91</width>
      <height>23</height>
     </rect>
@@ -105,7 +105,7 @@
    <property name="geometry">
     <rect>
      <x>720</x>
-     <y>240</y>
+     <y>250</y>
      <width>91</width>
      <height>23</height>
     </rect>
@@ -137,7 +137,7 @@
    <property name="geometry">
     <rect>
      <x>720</x>
-     <y>270</y>
+     <y>320</y>
      <width>91</width>
      <height>23</height>
     </rect>
@@ -150,7 +150,7 @@
    <property name="geometry">
     <rect>
      <x>720</x>
-     <y>300</y>
+     <y>340</y>
      <width>91</width>
      <height>23</height>
     </rect>
@@ -163,7 +163,7 @@
    <property name="geometry">
     <rect>
      <x>720</x>
-     <y>330</y>
+     <y>360</y>
      <width>91</width>
      <height>23</height>
     </rect>
@@ -176,7 +176,7 @@
    <property name="geometry">
     <rect>
      <x>720</x>
-     <y>360</y>
+     <y>380</y>
      <width>91</width>
      <height>23</height>
     </rect>
@@ -238,7 +238,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Job Commands</string>
+    <string>Order Change</string>
    </property>
   </widget>
   <widget class="QTextBrowser" name="text_log">
@@ -281,7 +281,7 @@
    <property name="geometry">
     <rect>
      <x>720</x>
-     <y>180</y>
+     <y>170</y>
      <width>91</width>
      <height>23</height>
     </rect>
@@ -306,6 +306,58 @@
    </property>
    <property name="text">
     <string>Job Path                                                              | Run Type           | Status</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btn_mark_wcp">
+   <property name="geometry">
+    <rect>
+     <x>720</x>
+     <y>210</y>
+     <width>91</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Mark CP</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btn_mark_nocp">
+   <property name="geometry">
+    <rect>
+     <x>720</x>
+     <y>190</y>
+     <width>91</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Mark No CP</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_4">
+   <property name="geometry">
+    <rect>
+     <x>720</x>
+     <y>130</y>
+     <width>81</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Job Commands</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_5">
+   <property name="geometry">
+    <rect>
+     <x>720</x>
+     <y>300</y>
+     <width>81</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Que Commands</string>
    </property>
   </widget>
  </widget>

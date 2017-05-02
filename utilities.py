@@ -33,8 +33,10 @@ RUN_TEST_TRANSFER_WAIT = 'RUN_TEST_TRANSFER_WAIT'
 RUN_PROD = 'RUN_PROD'
 
 # run types
-SINGLE = 'Single'
-FULL = 'Full'
+SINGLE_WCP = 'Single_wCP'
+FULL_WCP = 'Full_wCP'
+SINGLE_NOCP = 'Single_noCP'
+FULL_NOCP = 'Full_noCP'
 
 # run settings
 SPOOF_SINGLE = 'SPOOF_SINGLE'

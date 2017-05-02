@@ -225,6 +225,11 @@ class JoeQue(object):
         else:
             return None
 
+    def get_job_by_folder_name(self, folder_name):
+        for job in self.jobs:
+            if os.path.basename(job) == os.path.basename(folder_name):
+                return self.jobs[job]
+
     def folder_status_query(self, fol):
 
         for job in self.jobs:
@@ -323,10 +328,8 @@ class JoeQue(object):
             cmd_opts = ['kill_after_job', 'kill_advance', 'kill_quit']
             if os.path.isfile(self.cmds_path):
                 commands = f_read(self.cmds_path)
-                for cmd in cmd_opts:
-                    if cmd in commands:
-                        log('EXECUTING external command: ' + cmd)
-                        break
+                for cmd in commands.split('\n'):
+                    log('EXECUTING external command: ' + cmd)
 
                 cmd = '>' + cmd
 
@@ -348,6 +351,11 @@ class JoeQue(object):
                         self.jobs[self.current_job].set_status('KILLED')
                         kill_adams()
 
+                    if 'reque' in cmd:
+                        fol = re.findall('\w+_model', cmd)[0]
+                        job = self.get_job_by_folder_name(fol)
+                        job.return_to_que()
+
             if done: break
 
 
@@ -359,7 +367,7 @@ class Job(object):
         self.path = model_dir
         self.pData_text = f_read(self.path + '/PatientData.csv')
         self.analysisType = re.findall('analysisType,(\w+)', self.pData_text)[0]
-        self.run_type = SINGLE if self.analysisType.lower() in 'postop ' else FULL
+        self.run_type = SINGLE_WCP if self.analysisType.lower() in 'postop ' else FULL_WCP
         self.fol_name = os.path.basename(self.path)
         self.stat_path = model_dir + '/que.stat'
         self.status = 'INITIALIZED'
@@ -375,6 +383,11 @@ class Job(object):
         self.submitted_path = os.path.dirname(os.path.dirname(self.queued_path)) + '/' + self.fol_name
         self.res_folder = None
         self.ocdlog_path = None
+
+    def return_to_que(self):
+        shutil.move(self.path, self.submitted_path)
+        self.path = self.submitted_path
+        self.set_status(WAITING_FOR_TRANSFER_COMPLETION)
 
 
     def short_path(self):
@@ -397,7 +410,12 @@ class Job(object):
         f_write('ocdjoblist.csv', '#,Name\n1,' + self.pat_name)
         f_write('ocdrunlist.txt', '1')
 
-        cmd_name = 'adams_run_full.command' if self.run_type == FULL else 'adams_run_single.command'
+        cmd_name = {FULL_NOCP: 'adams_run_full_noCP.command',
+                    FULL_WCP: 'adams_run_full_wCP.command',
+                    SINGLE_NOCP: 'adams_run_single_noCP.command',
+                    SINGLE_WCP: 'adams_run_single_wCP.command'}[self.run_type]
+
+
 
         if RUN_MODE == SPOOF_SINGLE:
 
