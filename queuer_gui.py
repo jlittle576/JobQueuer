@@ -162,7 +162,7 @@ class StartQT4(QtGui.QMainWindow):
 
         # job specific (de)activations
         self.active_job = self.que.get(self.ui.list_order.currentItem())
-        if self.active_job.status in [COMPLETE, RUNNING]:
+        if self.active_job.status not in [QUEUED, WAITING_FOR_TRANSFER_COMPLETION]:
             self.ui.btn_reque.setEnabled(True)
         else:
             self.ui.btn_reque.setEnabled(False)

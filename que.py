@@ -385,8 +385,11 @@ class Job(object):
         self.ocdlog_path = None
 
     def return_to_que(self):
-        shutil.move(self.path, self.submitted_path)
-        self.path = self.submitted_path
+        que_path = './que/' + os.path.basename(self.path)
+        log('REQUEUING %s > %s' % (self.path, que_path))
+
+        shutil.move(self.path, que_path)
+        self.path = que_path
         self.set_status(WAITING_FOR_TRANSFER_COMPLETION)
 
 
