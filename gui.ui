@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>828</width>
-    <height>606</height>
+    <height>695</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,10 +16,10 @@
   <widget class="QListWidget" name="list_order">
    <property name="geometry">
     <rect>
-     <x>20</x>
-     <y>30</y>
-     <width>691</width>
-     <height>201</height>
+     <x>10</x>
+     <y>50</y>
+     <width>701</width>
+     <height>231</height>
     </rect>
    </property>
   </widget>
@@ -53,7 +53,7 @@
    <property name="geometry">
     <rect>
      <x>720</x>
-     <y>330</y>
+     <y>390</y>
      <width>91</width>
      <height>23</height>
     </rect>
@@ -66,7 +66,7 @@
    <property name="geometry">
     <rect>
      <x>720</x>
-     <y>150</y>
+     <y>210</y>
      <width>91</width>
      <height>23</height>
     </rect>
@@ -105,7 +105,7 @@
    <property name="geometry">
     <rect>
      <x>720</x>
-     <y>180</y>
+     <y>240</y>
      <width>91</width>
      <height>23</height>
     </rect>
@@ -118,7 +118,7 @@
    <property name="geometry">
     <rect>
      <x>610</x>
-     <y>230</y>
+     <y>280</y>
      <width>101</width>
      <height>20</height>
     </rect>
@@ -137,7 +137,7 @@
    <property name="geometry">
     <rect>
      <x>720</x>
-     <y>210</y>
+     <y>270</y>
      <width>91</width>
      <height>23</height>
     </rect>
@@ -150,7 +150,7 @@
    <property name="geometry">
     <rect>
      <x>720</x>
-     <y>240</y>
+     <y>300</y>
      <width>91</width>
      <height>23</height>
     </rect>
@@ -163,7 +163,7 @@
    <property name="geometry">
     <rect>
      <x>720</x>
-     <y>270</y>
+     <y>330</y>
      <width>91</width>
      <height>23</height>
     </rect>
@@ -176,7 +176,7 @@
    <property name="geometry">
     <rect>
      <x>720</x>
-     <y>300</y>
+     <y>360</y>
      <width>91</width>
      <height>23</height>
     </rect>
@@ -188,21 +188,28 @@
   <widget class="QTextBrowser" name="text_job_info">
    <property name="geometry">
     <rect>
-     <x>20</x>
-     <y>260</y>
-     <width>691</width>
-     <height>91</height>
+     <x>10</x>
+     <y>310</y>
+     <width>701</width>
+     <height>131</height>
     </rect>
    </property>
   </widget>
-  <widget class="QLabel" name="label">
+  <widget class="QLabel" name="label_job_list">
    <property name="geometry">
     <rect>
-     <x>20</x>
+     <x>10</x>
      <y>10</y>
-     <width>46</width>
-     <height>13</height>
+     <width>201</width>
+     <height>16</height>
     </rect>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>9</pointsize>
+     <weight>50</weight>
+     <bold>false</bold>
+    </font>
    </property>
    <property name="text">
     <string>Job Que</string>
@@ -212,7 +219,7 @@
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>360</y>
+     <y>450</y>
      <width>391</width>
      <height>16</height>
     </rect>
@@ -237,24 +244,68 @@
   <widget class="QTextBrowser" name="text_log">
    <property name="geometry">
     <rect>
-     <x>20</x>
-     <y>380</y>
-     <width>791</width>
-     <height>211</height>
+     <x>10</x>
+     <y>470</y>
+     <width>801</width>
+     <height>221</height>
     </rect>
    </property>
   </widget>
-  <widget class="QLabel" name="label_4">
+  <widget class="QLabel" name="label_job_info">
    <property name="geometry">
     <rect>
-     <x>20</x>
-     <y>240</y>
+     <x>10</x>
+     <y>290</y>
      <width>46</width>
      <height>13</height>
     </rect>
    </property>
    <property name="text">
     <string>Job Info</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btn_mark_single">
+   <property name="geometry">
+    <rect>
+     <x>720</x>
+     <y>150</y>
+     <width>91</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Mark Single</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btn_mark_full">
+   <property name="geometry">
+    <rect>
+     <x>720</x>
+     <y>180</y>
+     <width>91</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Mark Full</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_job_list_columns">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>30</y>
+     <width>701</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Consolas</family>
+    </font>
+   </property>
+   <property name="text">
+    <string>Job Path                                                              | Run Type           | Status</string>
    </property>
   </widget>
  </widget>

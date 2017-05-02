@@ -1,7 +1,22 @@
 import sys, os, shutil, glob, copy, time, datetime, inspect, re, random, math
 from collections import OrderedDict
 from dateutil import tz
-from constants import *
+from utilities import *
+
+TICK = 0
+LOOP_TICK = 0
+
+
+def tick():
+    global TICK, LOOP_TICK
+    # print 'tick %s   loop_tick: %s' % (TICK, LOOP_TICK)
+
+    if TICK == 30:
+        _ = 0
+
+    TICK += 1
+    LOOP_TICK += 1
+
 
 
 # setup sentinels
@@ -9,11 +24,6 @@ RUN_MODE = RUN_DOE
 RETURN_TO_QUE = False
 FILE_TRANSFER_WAIT_TIME = 10
 # QUE_TOP_DIR = '//192.168.10.254/kdev_que_1/' #
-
-
-def kill_adams():
-    os.system('start taskkill.exe /F /IM aview* /T')
-
 
 # development settings
 DEV_MODE = False
@@ -24,8 +34,8 @@ if os.path.isdir('C:/Users/Joe/Dropbox/code/projects'):   # like, omg, super adv
     #
     # TEST_TRANSFER_WAIT = True
     # TEST_QUE_MOD = True
-    ADAMS_START_LIMIT = 5
-    # RUN_MODE = SPOOF_DOE
+    ADAMS_START_LIMIT = 60
+    RUN_MODE = RUN_DOE
     RETURN_TO_QUE = True
     # DOE_COMPLETE_STRING = SINGLE_COMPLETE_STRING
     FILE_TRANSFER_WAIT_TIME = 2
@@ -39,8 +49,7 @@ if os.path.isdir('C:/Users/Joe/Dropbox/code/projects'):   # like, omg, super adv
 
 
 def log(msg):
-    ts =  datetime.datetime.now().strftime('%m/%d %H:%M - ')
-
+    ts =  datetime.datetime.now().strftime('%m/%d %H:%M:%S - ')
 
     key_sep = re.findall('^([A-Z]+)\s+(.*)', msg)
     if len(key_sep)>0:
@@ -51,9 +60,6 @@ def log(msg):
 
     f_add('que.log', msg + '\n')
 
-
-def fl_get(term):
-    return slash_fix(glob.glob(term))
 
 def main():
 
@@ -166,7 +172,8 @@ class JoeQue(object):
                 _ = 0
         for k in keys:
             job = self.jobs[k]
-            list += '%s,%s\n' % (job.path, job.status)
+            run_type = job.run_type.replace('_run', '').lower().title()
+            list += '%s,%s,run_type=%s\n' % (job.path, job.status, run_type)
         f_write('que_order.csv', list)
 
     def manage_que_order(self):
@@ -186,6 +193,11 @@ class JoeQue(object):
                 for job in self.jobs:
                     if self.jobs[job].pat_name in line:
                         self.que_order_inputs.append(job)
+
+                    for k, v in re.findall('(\w+)=(\w+)', line):
+                        self.jobs[job].__dict__[k] = v
+                        log('%s: %s set to %s' % (job, k, v))
+
 
         new_list = copy.copy(self.que_order_inputs)
         for job in self.jobs.keys():
@@ -207,15 +219,21 @@ class JoeQue(object):
 
     def get_job_by_patient(self, pat):
         for job in self.jobs.values():
+            # print '||', job
             if pat in job.path:
                 return job
         else:
             return None
 
     def folder_status_query(self, fol):
-        pat = os.path.basename(fol).replace('_model', '')
-        job = self.get_job_by_patient(pat)
-        return job.status if job is not None else None
+
+        for job in self.jobs:
+            if os.path.basename(job) == os.path.basename(fol):
+                return self.jobs[job].status
+        return None
+        # pat = os.path.basename(fol).replace('_model', '')
+        # job = self.get_job_by_patient(pat)
+        # return job.status if job is not None else None
 
     def start(self):
         """Main program loop"""
@@ -224,7 +242,12 @@ class JoeQue(object):
         notify_on_finish = True
         # kill_adams()
         i = 0
+
+        timers = True
         while 1:
+
+            global LOOP_TICK
+            LOOP_TICK = 0
 
             # loop init
             done = False
@@ -237,12 +260,13 @@ class JoeQue(object):
                 pat_sub_fol = pat_run_fol.replace('/queTest', '/que/queTest').replace('queTest_', 'queTest_dupe_')
                 os.mkdir(self.top_dir+'que/queTest_dummyTemp_model')
 
+
             # check for new folders
             # ToDo: check for redundant folders in que/run dirs
             # ToDo: assign que order based on mod time of new folders
             for model_fol in fl_get(self.que_input_path + '/*_model'):
                 if self.folder_status_query(model_fol) not in [QUEUED, WAITING_FOR_TRANSFER_COMPLETION]:
-                    # print '++%s' % (model_fol)
+                    # print '++%s - %s' % (model_fol, self.folder_status_query(model_fol))
                     self.add(model_fol)
                     i += 1
                     if i > 5:
@@ -270,12 +294,18 @@ class JoeQue(object):
             for job in self.jobs.values():
                 if job.status == RUNNING:
                     self.num_running += 1
+
             finished = True
             for name, job in self.jobs.items():
+                tick()
                 if job.status in [QUEUED, WAITING_FOR_TRANSFER_COMPLETION, RUNNING]:
+                    tick()
+
                     notify_on_finish = True
                     finished = False
                 if (job.status == QUEUED) and self.num_running < self.max_que:
+                    tick()
+
                     self.num_running += 1
                     job.submit()
                     self.current_job = name
@@ -283,11 +313,11 @@ class JoeQue(object):
                 notify_on_finish = False
                 log('No remaining jobs in que! (Still monitoring que dir...)')
 
+
             # que_order.csv interaction
             if os.path.isfile('que_order_mod.csv'):
                 self.manage_que_order()
             self.export_que_list()
-
 
             # external command interations
             cmd_opts = ['kill_after_job', 'kill_advance', 'kill_quit']
@@ -320,14 +350,6 @@ class JoeQue(object):
 
             if done: break
 
-def get_dir_size(path):
-    total_size = 0
-    for dirpath, dirnames, filenames in os.walk(path):
-        for f in filenames:
-            fp = os.path.join(dirpath, f)
-            total_size += os.path.getsize(fp)
-    return total_size
-
 
 class Job(object):
     def __init__(self, parent, model_dir):
@@ -335,11 +357,15 @@ class Job(object):
         self.parent = parent
         self.queued_path = model_dir  # assumption that only folders in que dir path are initialized
         self.path = model_dir
+        self.pData_text = f_read(self.path + '/PatientData.csv')
+        self.analysisType = re.findall('analysisType,(\w+)', self.pData_text)[0]
+        self.run_type = SINGLE if self.analysisType.lower() in 'postop ' else FULL
         self.fol_name = os.path.basename(self.path)
         self.stat_path = model_dir + '/que.stat'
         self.status = 'INITIALIZED'
         self.substatus = None
         self.fol_size = 0
+        # print 'I:',self.fol_name
         self.time_of_last_size_change = 0
         self.last_transfer_status_msg_time = datetime.datetime.utcnow()
         # self.set_status(QUEUED)
@@ -349,6 +375,7 @@ class Job(object):
         self.submitted_path = os.path.dirname(os.path.dirname(self.queued_path)) + '/' + self.fol_name
         self.res_folder = None
         self.ocdlog_path = None
+
 
     def short_path(self):
         return self.path.replace(self.parent.top_dir, os.path.basename(self.parent.top_dir))
@@ -370,6 +397,8 @@ class Job(object):
         f_write('ocdjoblist.csv', '#,Name\n1,' + self.pat_name)
         f_write('ocdrunlist.txt', '1')
 
+        cmd_name = 'adams_run_full.command' if self.run_type == FULL else 'adams_run_single.command'
+
         if RUN_MODE == SPOOF_SINGLE:
 
             f_write('adams_spoof_run.command', '')
@@ -383,18 +412,15 @@ class Job(object):
         elif RUN_MODE == SPOOF_DOE:
 
             f_write('adams_spoof_run.command', '')
-            os.system('C:/MSC.Software/Adams_x64/2014_0_1/common/mdi.bat aview ru-st i')
+            os.system('call C:/MSC.Software/Adams_x64/2014_0_1/common/mdi.bat aview ru-st i')
             self.res_folder = '%s/%s_dummyResults_model_%s' % (
             self.submitted_path, self.pat_name, datetime.datetime.now().strftime('%Y%m%d%H%M%S'))
             self.ocdlog_path = '%s/ocdlog_dummy.txt' % self.res_folder
             os.mkdir(self.res_folder)
-            #time.sleep(SPOOF_RUN_TIME)
-            #f_write(self.ocdlog_path, 'RUNSTUDY COMPLETE')
-            # os.system('start taskkill.exe /F /IM aview* /T')
 
         elif RUN_MODE == RUN_DOE:
 
-            f_write('adams_run_que.command', '')
+            f_write(cmd_name, '')
             os.system('C:/MSC.Software/Adams_x64/2014_0_1/common/mdi.bat aview ru-st i')
             # os.system('start cmd.exe /C start __adams__start_and_run_current.bat')
 
@@ -409,11 +435,23 @@ class Job(object):
 
         if self.time_of_last_size_change == 0:
             self.time_of_last_size_change = copy.copy(current_time)
-        if new_size > self.fol_size:
+        if new_size > (self.fol_size+1):
+            # print '\nnew_size > (self.fol_size+1)'
+            # print '  self.fol_name   :', self.fol_name
+            # print '  new_size        :', new_size
+            # print '  self.fol_size   :', self.fol_size
             self.fol_size = copy.copy(new_size)
             self.time_of_last_size_change = copy.copy(current_time)
+        # else:
+        #     print '<='
 
         self.secs_since_filesize_change = (current_time - self.time_of_last_size_change).total_seconds()
+
+
+        # print 'current_time                   ',  current_time
+        # print 'mod_time                       ',  mod_time
+        # print 'self.time_of_last_size_change  ',  self.time_of_last_size_change
+        # print 'self.secs_since_filesize_change',  self.secs_since_filesize_change
 
 
         # import datetime
@@ -434,7 +472,10 @@ class Job(object):
     def check_complete(self):
 
         if 'DOE' in RUN_MODE:
-            ocdlog_complete_test = DOE_COMPLETE_STRING
+            if 'ful' in self.run_type.lower():
+                ocdlog_complete_test = DOE_COMPLETE_STRING
+            else:
+                ocdlog_complete_test = SINGLE_COMPLETE_STRING
         elif 'SINGLE' in RUN_MODE:
             ocdlog_complete_test = SINGLE_COMPLETE_STRING
 
@@ -448,7 +489,7 @@ class Job(object):
 
 
 
-        self.timeouts = [(WAITING_FOR_ADAMS_START, ADAMS_START_LIMIT, 'Adams failed to start and/or initialize %(secs_since)s, please check for model/license issues'),
+        self.timeouts = [(WAITING_FOR_ADAMS_START, ADAMS_START_LIMIT, 'Adams failed to start or load the patient properly within %(secs_since)s, please check for model/license issues'),
                          (MONITORING_ADAMS_LOG, 60*60, 'Terminating adams run, failed to complete after %(mins_since)s, please check OCD log for issues')]
 
         for condition, limit, timeout_msg in self.timeouts:
@@ -482,7 +523,7 @@ class Job(object):
         if self.ocdlog_path is not None:
             if 'SPOOF' in RUN_MODE:
                 if os.path.isfile('./adams_done.command'):
-                    print '>> spoof.done found'
+                    # print '>> spoof.done found'
                     os.remove('./adams_done.command')
                     f_write(self.ocdlog_path, 'RUNSTUDY COMPLETE Information: Model creation complete')
                 else:
@@ -490,8 +531,16 @@ class Job(object):
 
             ocdlog = f_read(self.ocdlog_path)
 
+            # complete test
             if ocdlog_complete_test in ocdlog:
                 self.set_status(COMPLETE)
+                return True
+
+            # fail test
+            elif 'Aborting model build' in ocdlog:
+                log("'Aborting model build' found in ocdlog, aborting. See ocdlog (path above) for more info.")
+                kill_adams()
+                self.set_status(FAILED)
                 return True
 
         return False
@@ -505,17 +554,20 @@ class Job(object):
             job_info += '  %s: %s\n' % (k, v)
 
 
-        msg = '%s %s' % (status, self.short_path())
+        msg = '%s %s (%s)' % (status, self.short_path(), self.run_type)
         if status in [WAITING_FOR_TRANSFER_COMPLETION]:
             msg += ' (folder size increased %s secs ago, waiting for %s)' % (int(self.secs_since_filesize_change), FILE_TRANSFER_WAIT_TIME)
 
         # time_since_last_transfer_status_update = int((time_now() - self.last_transfer_status_msg_time).total_seconds())
 
         if status is not self.status:
+            if 'RUN' in status:
+                _ = 0
             self.last_transfer_status_msg_time = datetime.datetime.now()
             self.status = status
             self.status_time = time_now()
-            f_write(self.path+'/que.stat', job_info)
+            # if not self.status == WAITING_FOR_TRANSFER_COMPLETION:
+            #     f_write(self.path+'/que.stat', job_info)
 
             log(msg)
 
@@ -523,7 +575,7 @@ class Job(object):
             self.substatus = substatus
             self.substatus_time = time_now()
 
-            log(msg)
+            # log(msg)
 
         # elif time_since_last_transfer_status_update > 10:
         #     self.last_transfer_status_msg_time = datetime.datetime.now()
@@ -532,74 +584,6 @@ class Job(object):
         # ToDo: Periodic updates about trandser wait time
 
         self.parent.manage_que_order()
-
-
-
-def time_now():
-    return datetime.datetime.now()
-
-def get_epoch():
-    datetime.datetime.now()
-
-def seconds_since(dt):
-    return (datetime.datetime.now() - dt).total_seconds()
-
-def f_add(path, text):
-    vars = inspect.stack()[1][0].f_locals
-    path = path % vars
-    fOut = open(path, 'a')
-    fOut.write(text)
-    fOut.close()
-    return
-
-
-def f_clear(path):
-    # Convenience function for file open/write/close
-    vars = inspect.stack()[1][0].f_locals
-    path = path % vars
-    fOut = open(path, 'w')
-    fOut.write('')
-    fOut.close()
-    return
-
-
-def f_write(path, text):
-    # Convenience function for file open/write/close
-    vars = inspect.stack()[1][0].f_locals
-    path = path % vars
-    fOut = open(path, 'w')
-    fOut.write(text)
-    fOut.close()
-    return
-
-
-def f_read(path):
-    # Convenience function for file open/write/close
-    vars = inspect.stack()[1][0].f_locals
-    path = path % vars
-    fIn = open(path, 'r')
-    txt = fIn.read()
-    fIn.close()
-    return txt
-
-def slash_fix(paths):
-    return_str = False
-    if type(paths) is str:
-        paths = [paths]
-        return_str = True
-
-    new_paths = []
-    for path in paths:
-        new_path = path.replace('\\', '/')
-        if '\\' in new_path:
-            raise Exception('slash_fix failes!' + new_path)
-        else:
-            new_paths.append(new_path)
-
-    if return_str:
-        return new_paths[0]
-    else:
-        return new_paths
 
 if __name__ == '__main__':
     main()

@@ -1,6 +1,7 @@
 from PySide.QtCore import QFile
 from PySide.QtCore import QTimer
 from PySide.QtGui import QColor
+from PySide.QtGui import QTextEdit
 from PySide.QtGui import QListWidgetItem
 from PySide.QtUiTools import QUiLoader
 from PySide import QtCore, QtGui, QtUiTools
@@ -14,12 +15,12 @@ except AttributeError:
     def _fromUtf8(s):
         return s
 
-
 COMPLETED = 'COMPLETED'
 QUEUED = 'QUEUED'
 FAILED = 'FAILED'
 RUNNING = 'RUNNING'
 STOPPED = 'STOPPED'
+
 
 class StartQT4(QtGui.QMainWindow):
     def __init__(self, parent=None):
@@ -28,8 +29,12 @@ class StartQT4(QtGui.QMainWindow):
 
         self.que = JobList(self)
 
-
     def initUI(self):
+
+        self.status = None
+        self.status_time = None
+        self.substatus = None
+        self.substatus_time = None
 
         loader = QUiLoader()
         file = QFile("./Source_Queuer/gui.ui")
@@ -56,13 +61,15 @@ class StartQT4(QtGui.QMainWindow):
         font.setFamily(_fromUtf8("Lucida Sans Typewriter"))
         self.ui.list_order.setFont(font)
 
-
         self.ui.setWindowTitle('Window')
         self.ui.show()
 
         # connectors
         self.ui.list_order.LineWrapMode = 0
         self.ui.list_order.itemClicked.connect(self.on_list_modify)
+
+        self.ui.btn_mark_single.clicked.connect(self.mark_single)
+        self.ui.btn_mark_full.clicked.connect(self.mark_full)
 
         self.ui.btn_up.clicked.connect(self.btn_up)
         self.ui.btn_down.clicked.connect(self.btn_down)
@@ -77,32 +84,40 @@ class StartQT4(QtGui.QMainWindow):
         self.ui.btn_open_folder.clicked.connect(self.open_folder)
         self.ui.chk_show_completed.stateChanged.connect(self.toggle_completed)
 
+        self.ui.text_log.setLineWrapMode(QTextEdit.NoWrap)
+
         # start-only widget initialization
         self.show_completed = self.ui.chk_show_completed.isChecked()
-
 
     def toggle_completed(self):
         print self.ui.chk_show_completed.isChecked()
         self.show_completed = self.ui.chk_show_completed.isChecked()
 
-
     def open_folder(self):
         path = self.que.get(self.ui.list_order.currentItem()).path
-
-        path = path.replace('/', '\\')
-        subprocess.Popen('explorer "{0}"'.format(path))
+        open_explorer(path)
 
     def btn_up(self):
-        self.que.reorder(self.active_job, -1)
+        self.que.export_que_modifications(self.active_job, -1)
 
     def btn_down(self):
-        self.que.reorder(self.active_job, 1)
+        self.que.export_que_modifications(self.active_job, 1)
 
     def btn_top(self):
-        self.que.reorder(self.active_job, 0, absolute=True)
+        self.que.export_que_modifications(self.active_job, 0, absolute=True)
 
     def btn_bottom(self):
-        self.que.reorder(self.active_job, -1, absolute=True)
+        self.que.export_que_modifications(self.active_job, -1, absolute=True)
+
+    def mark_single(self):
+        self.que.get(self.ui.list_order.currentItem()).run_type = 'Single'
+        self.refresh_internal()
+        self.que.export_que_modifications()
+
+    def mark_full(self):
+        self.que.get(self.ui.list_order.currentItem()).run_type = 'Full'
+        self.refresh_internal()
+        self.que.export_que_modifications()
 
     def stop_que(self):
         f_write('que.commands', 'stop')
@@ -140,20 +155,21 @@ class StartQT4(QtGui.QMainWindow):
         #     self.ui.btn_start.setEnabled(True)
 
         # job info
-        try:
-            pData_path = glob.glob(self.active_job.path + '/PatientData.csv')[0]
-            pData = f_read(pData_path)
-        except:
-
-            pData = False
-
-
-
+        #print 'acitve path issue: ', self.active_job.path
+        pData_path = self.active_job.path + '/PatientData.csv'
+        pData = f_read(pData_path) if os.path.isfile(pData_path) else None
         patInfo = {}
-        mtime = os.path.getmtime(self.active_job.path)
-        mtime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(mtime))
+        if os.path.isdir(self.active_job.path):
+            mtime = os.path.getmtime(self.active_job.path)
+            mtime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(mtime))
 
-        patInfo.update(locals())
+            status = self.active_job.status
+            status_time = self.active_job.status_time
+            substatus = self.active_job.substatus
+            substatus_time = self.active_job.substatus_time
+
+        run_type = self.active_job.run_type
+
 
         if pData:
             self.ui.text_job_info.setText(pData_path)
@@ -163,21 +179,29 @@ class StartQT4(QtGui.QMainWindow):
                     patInfo[row[0]] = row[1]
 
 
-            info_text='''%(pData_path)s
-    Name: %(patientFirstName)s %(patientLastName)s
-    Side: %(side)s
-    Surgeon: %(surgeon)s
+            patInfo.update(locals())
+            info_text = '''%(pData_path)s
+    Paient/Side/Surgeon: %(patientFirstName)s %(patientLastName)s | %(side)s | %(surgeon)s
     Queued: %(mtime)s
-    ''' % patInfo
+    Status: %(status)s as of %(status_time)s
+    Run Type: %(run_type)s
+''' % patInfo
+
+            if substatus is not None:
+                info_text += '''
+    Substatus: %(status_time)s as of %(substatus_time)s''' % locals()
+
+
 
         else:
-            info_text = "could not find PatientData.csv"
+            if not os.path.isdir(self.active_job.path):
+                info_text = "Could not dir at expected location, " + self.active_job.path
+            else:
+                info_text = "Could not find PartientData.csv, " +  pData_path
 
         self.ui.text_job_info.setText(info_text)
 
-
     def loop_refresh(self):
-
 
         # print '!'
         """Check que_order.csv for updates and various other status updates, happens every 50ms"""
@@ -188,20 +212,24 @@ class StartQT4(QtGui.QMainWindow):
 
         if os.path.isfile('que.log'):
 
-            m_time = os.path.getmtime('que_order.csv')
+            # if os.path.isfile('que_order.csv'):
+            m_time = os.path.getmtime('que.log')
             que_log_age = time.time() - m_time
 
             if que_log_age > 30:  # que no active
                 if que_log_age < 119:
-                    age = '%s seconds' % int(int(que_log_age/5) * 5)
-                elif  que_log_age < 7200:
-                    age = '%s minutes' % str(int(que_log_age/60.0))
+                    age = '%s seconds' % int(int(que_log_age / 5) * 5)
+                elif que_log_age < 7200:
+                    age = '%s minutes' % str(int(que_log_age / 60.0))
                 else:
-                    age = '%s hours' % str(int(que_log_age/60.0))
+                    age = '%s hours' % str(int(que_log_age / 60.0))
                 self.ui.label_que_log.setText('Que log (not updated in %s)' % age)
 
                 que_running = False
-
+            #
+            # else:
+            #     self.ui.label_que_log.setText('Que log (not updated in %s)' % age)
+            #     que_running = False
 
 
             else:
@@ -212,8 +240,8 @@ class StartQT4(QtGui.QMainWindow):
 
                 self.ui.setWindowTitle('JobQueuer Queuer Status: Not Running')
 
-
-            self.ui.text_log.setText(f_read('que.log'))
+            log = f_read('que.log')
+            self.ui.text_log.setText(log)
             self.ui.text_log.verticalScrollBar().setValue(self.ui.text_log.verticalScrollBar().maximum())
 
         else:
@@ -234,30 +262,36 @@ class StartQT4(QtGui.QMainWindow):
     def refresh_from_file(self, update_only=False):
 
         # print '!!'
-        lines = f_read('./que_order.csv').split('\n')
-        rows = [x.split('#')[0].split(',') for x in lines]
-        rows = [x for x in rows if len(x) > 1]
 
-        old_jobs = [(x.path, x.status) for x in self.que.list]
+        if os.path.isfile('./que_order.csv'):
+            self.ui.label_job_list.setText('Job Que')
+            lines = f_read('./que_order.csv').split('\n') if os.path.isfile('./que_order.csv') else ['']
+            rows = [x.split('#')[0].split(',') for x in lines]
+            rows = [x for x in rows if len(x) > 1]
 
-        if len(old_jobs) > 1:
-            _ = 0
+            old_jobs = [(x.path, x.status) for x in self.que.list]
 
-        if update_only:
+            if len(old_jobs) > 1:
+                _ = 0
+
+            if not update_only: self.que.clear()
+
             for row in rows:
+                line = ','.join(row)
+
                 pat = os.path.basename(row[0])
                 job = self.que.get(pat)
                 if job is None:
-                    job = self.que.add(*row)
-                else:
-                    job.status = row[1]
-                    job.path = row[0]
+                    job = self.que.add(row[0])
+                job.status = row[1]
+                job.path = row[0]
 
-                # print '!!', job.label
+                for k, v in re.findall('(\w+)=(\w+)', line):
+                    if (k not in job.__dict__) or (not update_only):
+                        job.__dict__[k] = v
+
         else:
-            self.que.clear()
-            for row in rows:
-                self.que.add(*row)
+            self.ui.label_job_list.setText('Job Que (que_order.csv not found)')
 
         # print '}}'
         self.refresh_internal()
@@ -267,9 +301,9 @@ class StartQT4(QtGui.QMainWindow):
         self.ui.list_order.clear()
         for job in self.que:
 
-            if (job.status == COMPLETE) and (self.show_completed == False):
+            if (job.status == COMPLETE) and (self.ui.chk_show_completed.isChecked() == False):
                 continue
-            job.label = '%-50s%s' % (job.short_path(), job.status)
+            job.label = '%-60s%-18s%s' % (job.short_path(), job.run_type, job.status)
 
             # print '>>', job.label
 
@@ -279,6 +313,7 @@ class StartQT4(QtGui.QMainWindow):
                 self.ui.list_order.setCurrentItem(item)
                 self.active_item = job
                 # item.setBackground(QColor.blue)
+
 
 class JobList:
     def __init__(self, parent):
@@ -311,25 +346,26 @@ class JobList:
             if key in job.label:
                 return job
 
-    def reorder(self, job, pos_change=-1, absolute=False):
+    def export_que_modifications(self, job=None, pos_change=None, absolute=False):
 
-        if not job.__class__.__name__ == "Job":
-            job = self.get(job)
+        if pos_change is not None:
+            if not job.__class__.__name__ == "Job":
+                job = self.get(job)
 
-        if absolute:
-            if pos_change < 0:
-                pos_change = len(self.list) + pos_change
-            new_index = pos_change
-        else:
-            new_index = self.list.index(job) + pos_change
-        self.list.remove(job)
-        self.list.insert(new_index, job)
+            if absolute:
+                if pos_change < 0:
+                    pos_change = len(self.list) + pos_change
+                new_index = pos_change
+            else:
+                new_index = self.list.index(job) + pos_change
+            self.list.remove(job)
+            self.list.insert(new_index, job)
 
-        self.parent.refresh_internal()
+            self.parent.refresh_internal()
 
         que_order = ''
         for job in self.list:
-            que_order += '%s\n' % job.path
+            que_order += '%s,run_type=%s\n' % (job.path, job.run_type)
 
         print que_order
 
@@ -338,21 +374,24 @@ class JobList:
 
 class Job:
     def __init__(self, path, status=None):
+        self.run_type = 'Unknown'
         self.path = path
         self.status = status
+        self.substatus = None
+        self.substatus_time = time_now()
         self.label = ''
+        self.status_time = time_now()
 
     def short_path(self):
         return self.path.replace(slash_fix(os.getcwd()), os.path.basename(os.getcwd()))
 
 
-
 if __name__ == "__main__":
 
     f_write('que.commands', '')
-    i =  0
+    i = 0
     while not os.path.isdir('./Source_Queuer'):
-        i +=1
+        i += 1
         os.chdir('../')
         if i > 5:
             raise Exception("Tried and failed to os.chdir('../') to dir containing Source_Queuer")

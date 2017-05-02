@@ -14,11 +14,11 @@ if c=(FILE_EXISTS( GETCWD()//'/adams_spoof_run.command' ))
 	var set var = .ocdl.suppress_alerts int = 1
 
 	var set var = .gui.py int= (eval(run_python_code("import time")))
-	var set var = .gui.py int= (eval(run_python_code("time.sleep(10)")))
+	var set var = .gui.py int= (eval(run_python_code("time.sleep(5)")))
 	var set var = .gui.py int= (eval(run_python_code("open('./adams_done.command','w')")))
 	quit
 
-elseif c=(FILE_EXISTS( GETCWD()//'/adams_run_que.command' ))
+elseif c=((FILE_EXISTS( GETCWD()//'/adams_run_single.command' )) || (FILE_EXISTS( GETCWD()//'/adams_run_full.command' )))
 	var set var = .ocdl.suppress_alerts int = 1
 
 	var set var = .gui.py int= (eval(run_python_code("import glob, os, aview_main")))
@@ -64,19 +64,21 @@ elseif c=(FILE_EXISTS( GETCWD()//'/adams_run_que.command' ))
 	int tog mod tog=.OCDL.dbox_runModel.toggle_RandD state=off
 	int pus exe pus = .OCDL.dbox_runModel.button_apply
 
-	
-	var set var = .gui.py int= (eval(run_python_code("import glob, os, aview_main")))
-	var set var = .gui.py int= (eval(run_python_code("fIn=open('ocdjoblist.csv').read()")))
-	var set var = .gui.py int= (eval(run_python_code("print fIn")))
-	var set var = .gui.py int= (eval(run_python_code("pat = fIn.split('1,')[1].split('2,')[0].rstrip()")))
-	var set var = .gui.py int= (eval(run_python_code("print pat")))
-	var set var = .gui.py int= (eval(run_python_code("fl = os.path.abspath(glob.glob('./'+pat+'*')[0]).replace('\\\\','/')")))
-	var set var = .gui.py int= (eval(run_python_code("print fl")))
-	var set var = .gui.py int= (eval(run_python_code("aview_main.execute_cmd('var set var = .mod.path str = %s%s%s' % (chr(39), fl ,chr(39)))")))
-	
-	int fie set fie = .gui.msg_box.message act = append str = '', (eval( 'Running ' // .mod.path // '/PatientData.csv Beta..' ))
-	int tog mod tog=.OCDL.dbox_runModel.toggle_RandD state=on
-	int pus exe pus = .OCDL.dbox_runModel.button_apply
+	if c=(FILE_EXISTS( GETCWD()//'/adams_run_full.command' ))
+		var set var = .gui.py int= (eval(run_python_code("import glob, os, aview_main")))
+		var set var = .gui.py int= (eval(run_python_code("fIn=open('ocdjoblist.csv').read()")))
+		var set var = .gui.py int= (eval(run_python_code("print fIn")))
+		var set var = .gui.py int= (eval(run_python_code("pat = fIn.split('1,')[1].split('2,')[0].rstrip()")))
+		var set var = .gui.py int= (eval(run_python_code("print pat")))
+		var set var = .gui.py int= (eval(run_python_code("fl = os.path.abspath(glob.glob('./'+pat+'*')[0]).replace('\\\\','/')")))
+		var set var = .gui.py int= (eval(run_python_code("print fl")))
+		var set var = .gui.py int= (eval(run_python_code("aview_main.execute_cmd('var set var = .mod.path str = %s%s%s' % (chr(39), fl ,chr(39)))")))
+		
+		int fie set fie = .gui.msg_box.message act = append str = '', (eval( 'Running ' // .mod.path // '/PatientData.csv Beta..' ))
+		int tog mod tog=.OCDL.dbox_runModel.toggle_RandD state=on
+		int pus exe pus = .OCDL.dbox_runModel.button_apply
+		
+	end
 
 	quit
 end
