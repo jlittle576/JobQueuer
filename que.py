@@ -7,9 +7,9 @@ TICK = 0
 LOOP_TICK = 0
 
 
-def tick():
+def tick(str=''):
     global TICK, LOOP_TICK
-    # print 'tick %s   loop_tick: %s' % (TICK, LOOP_TICK)
+    # print 'tick %s   loop_tick: %s  tag: %s' % (TICK, LOOP_TICK, str)
 
     if TICK == 30:
         _ = 0
@@ -57,7 +57,6 @@ def log(msg):
     msg = ts + msg
 
     print msg
-
     f_add('que.log', msg + '\n')
 
 
@@ -87,7 +86,7 @@ def main():
         # -- test code --
         test_pat_folders = fl_get(top_dir + '/queTest*_model') + fl_get(top_dir + '/que/queTest*_model')
         f_write('que.log', '')
-        os.system('start taskkill.exe /F /IM aview* /T')
+        # os.system('start taskkill.exe /F /IM aview* /T')
 
         for fol in test_pat_folders:
             pat_run_fol = fol.replace('/que/queTest', '/queTest')
@@ -190,13 +189,15 @@ class JoeQue(object):
             self.que_order_inputs = []
 
             for line in list_mod:
-                for job in self.jobs:
-                    if self.jobs[job].pat_name in line:
-                        self.que_order_inputs.append(job)
-
+                print line
+                list_pat = os.path.basename(line.split(',')[0])
+                job_key = self.get_job_by_folder_name(list_pat, return_key=True)
+                if job_key is not None:
+                    job = self.jobs[job_key]
+                    self.que_order_inputs.append(job_key)
                     for k, v in re.findall('(\w+)=(\w+)', line):
-                        self.jobs[job].__dict__[k] = v
-                        log('%s: %s set to %s' % (job, k, v))
+                        job.__dict__[k] = v
+                        log('%s: %s set to %s' % (job_key, k, v))
 
 
         new_list = copy.copy(self.que_order_inputs)
@@ -225,10 +226,14 @@ class JoeQue(object):
         else:
             return None
 
-    def get_job_by_folder_name(self, folder_name):
+    def get_job_by_folder_name(self, folder_name, return_key=False):
         for job in self.jobs:
             if os.path.basename(job) == os.path.basename(folder_name):
-                return self.jobs[job]
+                if return_key:
+                    return job
+                else:
+                    return self.jobs[job]
+        return None
 
     def folder_status_query(self, fol):
 
@@ -249,6 +254,20 @@ class JoeQue(object):
         i = 0
 
         timers = True
+
+        # if 0:   # spoof submit
+
+        def test_sub():
+            tst_fol = 'C:/Users/Joe/Dropbox/code/projects/queuer/queTest_MEN_RS_4452K_model'
+            que_fol = 'C:/Users/Joe/Dropbox/code/projects/queuer/que/queTest_MEN_RS_4452K_model'
+            time.sleep(1)
+            shutil.move(que_fol, tst_fol)
+            run_cmd_tpl = f_read('./source_queuer/run_template.cmd')
+            run_cmds = run_cmd_tpl % {'path': tst_fol}
+            f_write('adams_run_current.command', run_cmds)
+            os.system('start C:/Users/Joe/Dropbox/code/projects/queuer/adams__start_run_current.bat')
+
+        # test_sub()
         while 1:
 
             global LOOP_TICK
@@ -256,26 +275,23 @@ class JoeQue(object):
 
             # loop init
             done = False
-            time.sleep(0.25)
+            time.sleep(0.5)
 
-            # test functions
-            if TEST_QUE_ADD and self.num_completed == 2:
-                pat_run_fol = fl_get('queTest*_model')[0]
-                if not self.top_dir in pat_run_fol: pat_run_fol = self.top_dir + pat_run_fol
-                pat_sub_fol = pat_run_fol.replace('/queTest', '/que/queTest').replace('queTest_', 'queTest_dupe_')
-                os.mkdir(self.top_dir+'que/queTest_dummyTemp_model')
+            # # test functions
+            # if TEST_QUE_ADD and self.num_completed == 2:
+            #     pat_run_fol = fl_get('queTest*_model')[0]
+            #     if not self.top_dir in pat_run_fol: pat_run_fol = self.top_dir + pat_run_fol
+            #     pat_sub_fol = pat_run_fol.replace('/queTest', '/que/queTest').replace('queTest_', 'queTest_dupe_')
+            #     os.mkdir(self.top_dir+'que/queTest_dummyTemp_model')
 
 
-            # check for new folders
+            # check for new folders que
             # ToDo: check for redundant folders in que/run dirs
             # ToDo: assign que order based on mod time of new folders
             for model_fol in fl_get(self.que_input_path + '/*_model'):
                 if self.folder_status_query(model_fol) not in [QUEUED, WAITING_FOR_TRANSFER_COMPLETION]:
                     # print '++%s - %s' % (model_fol, self.folder_status_query(model_fol))
                     self.add(model_fol)
-                    i += 1
-                    if i > 5:
-                        _ = 0
 
             # check for run completion
             for job in self.jobs.values():
@@ -284,15 +300,23 @@ class JoeQue(object):
                         self.num_running -= 1
                         self.num_completed += 1
 
+
+            # # ahk click OC run
+            # if os.path.isfile('ready_to_run.command'):
+            #     log('Adams ready_to_run.command recieved, initiating run...')
+            #     os.remove('ready_to_run.command')
+            #     time.sleep(0.5)
+            #     os.system(r'start "C:\Program Files (x86)\AutoHotkey\AutoHotkey.exe" run_model.ahk')
+
             # check for transfer completion
             for job in self.jobs.values():
                 if job.status == WAITING_FOR_TRANSFER_COMPLETION:
                     job.check_transfer_complete()
 
-            # test functions
-            # if (self.num_running < self.max_que):
-            if (self.num_running < self.max_que) and TEST_QUE_MOD and (self.num_completed == 1):
-                self.randomize_que()
+            # que_order.csv interaction
+            if os.path.isfile('que_order_mod.csv'):
+                self.manage_que_order()
+            self.export_que_list()
 
             # submission
             self.num_running = 0
@@ -304,29 +328,26 @@ class JoeQue(object):
             for name, job in self.jobs.items():
                 tick()
                 if job.status in [QUEUED, WAITING_FOR_TRANSFER_COMPLETION, RUNNING]:
-                    tick()
-
                     notify_on_finish = True
                     finished = False
                 if (job.status == QUEUED) and self.num_running < self.max_que:
-                    tick()
 
                     self.num_running += 1
                     job.submit()
+                    # test_sub()
+                    # sys.exit()
                     self.current_job = name
             if finished and notify_on_finish:
                 notify_on_finish = False
                 log('No remaining jobs in que! (Still monitoring que dir...)')
 
 
-            # que_order.csv interaction
-            if os.path.isfile('que_order_mod.csv'):
-                self.manage_que_order()
-            self.export_que_list()
-
-            # external command interations
+            # log('>>')
+            #
+            # # external command interations
             cmd_opts = ['kill_after_job', 'kill_advance', 'kill_quit']
             if os.path.isfile(self.cmds_path):
+                log('...')
                 commands = f_read(self.cmds_path)
                 for cmd in commands.split('\n'):
                     log('EXECUTING external command: ' + cmd)
@@ -344,6 +365,10 @@ class JoeQue(object):
                         kill_adams()
                         self.jobs[self.current_job].set_status('KILLED')
                         self.manage_que_order()
+                    elif 'advance' in cmd:
+                        log('ADVANCE command entered, marking current job complete')
+                        self.jobs[self.current_job].set_status('COMPLETED')
+
 
                     if 'kill_quit' in cmd:
                         done = True
@@ -357,6 +382,7 @@ class JoeQue(object):
                         job.return_to_que()
 
             if done: break
+            # sys.exit()
 
 
 class Job(object):
@@ -367,7 +393,7 @@ class Job(object):
         self.path = model_dir
         self.pData_text = f_read(self.path + '/PatientData.csv')
         self.analysisType = re.findall('analysisType,(\w+)', self.pData_text)[0]
-        self.run_type = SINGLE_WCP if self.analysisType.lower() in 'postop ' else FULL_WCP
+        self.run_type = SINGLE_NOCP if self.analysisType.lower() in 'postop ' else FULL_WCP
         self.fol_name = os.path.basename(self.path)
         self.stat_path = model_dir + '/que.stat'
         self.status = 'INITIALIZED'
@@ -376,9 +402,13 @@ class Job(object):
         # print 'I:',self.fol_name
         self.time_of_last_size_change = 0
         self.last_transfer_status_msg_time = datetime.datetime.utcnow()
-        # self.set_status(QUEUED)
+
+        if PERFORM_TRANSFER_WAIT:
+            self.check_transfer_complete()
+        else:
+            self.set_status(QUEUED)
         # print 'init'
-        self.check_transfer_complete()
+        # self.check_transfer_complete()
         self.pat_name = self.fol_name.replace('_model', '')
         self.submitted_path = os.path.dirname(os.path.dirname(self.queued_path)) + '/' + self.fol_name
         self.res_folder = None
@@ -408,7 +438,10 @@ class Job(object):
         for fl in glob.glob('./*command'):
             os.remove(fl)
 
-        self.set_status(RUNNING, WAITING_FOR_ADAMS_START)
+        if PERFORM_ADAMS_WAIT:
+            self.set_status(RUNNING, WAITING_FOR_ADAMS_START)
+        else:
+            self.set_status(RUNNING, MONITORING_ADAMS_LOG)
 
         f_write('ocdjoblist.csv', '#,Name\n1,' + self.pat_name)
         f_write('ocdrunlist.txt', '1')
@@ -418,7 +451,13 @@ class Job(object):
                     SINGLE_NOCP: 'adams_run_single_noCP.command',
                     SINGLE_WCP: 'adams_run_single_wCP.command'}[self.run_type]
 
+        run_cmd_tpl = f_read('./source_queuer/run_template.cmd')
 
+        run_single = '1' if 'single' in self.run_type.lower() else '0'
+        run_cmds = run_cmd_tpl % {'path': self.submitted_path,
+                                  'run_doe': '0' if 'single' in self.run_type.lower() else '1',
+                                  'run_single': '1' if 'single' in self.run_type.lower() else '0',
+                                  'run_cp': '0' if 'nocp' in self.run_type.lower() else '1'}
 
         if RUN_MODE == SPOOF_SINGLE:
 
@@ -441,8 +480,21 @@ class Job(object):
 
         elif RUN_MODE == RUN_DOE:
 
-            f_write(cmd_name, '')
-            os.system('C:/MSC.Software/Adams_x64/2014_0_1/common/mdi.bat aview ru-st i')
+            # f_write(cmd_name, '')
+
+            f_write('./adams_run_current.command', run_cmds)
+            os.system('start C:/MSC.Software/Adams_x64/2014_0_1/common/mdi.bat aview ru-st i')
+            # os.system('start C:/Users/Joe/Dropbox/code/projects/queuer/adams__start_run_current.bat')
+#             f_write('que_run.bat', r'''@echo off
+# IF EXIST adams_joe_debug.command del /F adams_joe_debug.command
+# C:\MSC.Software\Adams_x64\2014_0_1\common\mdi.bat aview ru-st i
+# start /wait wait.bat''')
+#             os.system('run_model.ahk')
+#             sys.exit()
+            # time.sleep(0.75)
+            # os.remove('que_run.bat')
+            # os.system('start /wait wait.bat')
+
             # os.system('start cmd.exe /C start __adams__start_and_run_current.bat')
 
     def check_transfer_complete(self):
@@ -518,9 +570,9 @@ class Job(object):
                 secs_since = seconds_since(self.substatus_time)
                 mins_since = secs_since / 60.0
                 if secs_since > limit:
-                    kill_adams()
+                    # kill_adams()
                     log(timeout_msg % locals())
-                    log('Killing Adams')
+                    # log('Killing Adams')
                     self.set_status(FAILED, TIMED_OUT)
                     return True
 
@@ -555,6 +607,7 @@ class Job(object):
             # complete test
             if ocdlog_complete_test in ocdlog:
                 self.set_status(COMPLETE)
+                # kill_adams()
                 return True
 
             # fail test
@@ -596,7 +649,9 @@ class Job(object):
             self.substatus = substatus
             self.substatus_time = time_now()
 
-            # log(msg)
+            msg = '%s %s (%s)' % (substatus, self.short_path(), self.run_type)
+
+            log(msg)
 
         # elif time_since_last_transfer_status_update > 10:
         #     self.last_transfer_status_msg_time = datetime.datetime.now()

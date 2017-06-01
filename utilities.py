@@ -43,6 +43,8 @@ SPOOF_SINGLE = 'SPOOF_SINGLE'
 SPOOF_DOE = 'SPOOF_DOE'
 RUN_SINGLE = 'RUN_SINGLE'
 RUN_DOE = 'RUN_DOE'
+PERFORM_TRANSFER_WAIT = False
+PERFORM_ADAMS_WAIT = False
 
 DOE_COMPLETE_STRING = 'RUNSTUDY COMPLETE'
 SINGLE_COMPLETE_STRING = 'Information: Model creation complete'
@@ -61,9 +63,11 @@ def utility_functions(): return
 
 def open_explorer(path):
     path = path.replace('/', '\\')
-    subprocess.Popen(r'explorer %s' % path,
-                     shell=True)
-
+    path = re.sub(r'\\+',r'\\',path)
+    cmd = r'explorer %s' % path
+    subprocess.Popen(cmd)
+    print cmd
+    
 def kill_adams():
     os.system('start taskkill.exe /F /IM aview* /T')
 

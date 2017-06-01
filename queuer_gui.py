@@ -264,7 +264,7 @@ class StartQT4(QtGui.QMainWindow):
                 # self.ui.btn_stop.setEnabled(False)
                 # self.ui.btn_start.setEnabled(True)
 
-                self.ui.setWindowTitle('JobQueuer Queuer Status: Not Running')
+                # self.ui.setWindowTitle('JobQueuer Queuer Status: Not Running')
 
             log = f_read('que.log')
             self.ui.text_log.setText(log)
@@ -277,11 +277,11 @@ class StartQT4(QtGui.QMainWindow):
         if que_running:
             # self.ui.btn_stop.setEnabled(True)
             # self.ui.btn_start.setEnabled(False)
-            self.ui.setWindowTitle('JobQueuer Queuer Status: Running')
+            self.ui.setWindowTitle('JobQueuer Queuer v1.2b  Status: Running')
         else:
             # self.ui.btn_stop.setEnabled(False)
             # self.ui.btn_start.setEnabled(True)
-            self.ui.setWindowTitle('JobQueuer Queuer Status: Not Running')
+            self.ui.setWindowTitle('JobQueuer Queuer v1.2b  Status: Not Running')
 
         self.refresh_from_file(update_only=True)
 
