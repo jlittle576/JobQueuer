@@ -454,10 +454,13 @@ class Job(object):
         run_cmd_tpl = f_read('./source_queuer/run_template.cmd')
 
         run_single = '1' if 'single' in self.run_type.lower() else '0'
-        run_cmds = run_cmd_tpl % {'path': self.submitted_path,
-                                  'run_doe': '0' if 'single' in self.run_type.lower() else '1',
-                                  'run_single': '1' if 'single' in self.run_type.lower() else '0',
-                                  'run_cp': '0' if 'nocp' in self.run_type.lower() else '1'}
+        run_para = {'path': self.submitted_path,
+                    'run_doe': '0' if 'single' in self.run_type.lower() else '1',
+                    'run_single': '1' if 'single' in self.run_type.lower() else '0',
+                    'run_cp': '0' if 'nocp' in self.run_type.lower() else '1'}
+
+        run_cmds = run_cmd_tpl % run_para
+        log('Generating run script with following parameters:' + str(run_para))
 
         if RUN_MODE == SPOOF_SINGLE:
 

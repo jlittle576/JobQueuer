@@ -11,6 +11,7 @@ int fie set fie = dbox_runModel.field_fileName str =  '%(path)s/PatientData.csv'
 
 if c=%(run_cp)s
 ! CP Export
+int pus exe pus = .OCDL.dbox_runModel.toggle_compPlace
 int fie set fie = .gui.msg_box.message act = append str = '', 'Exporting %(path)s/PatientData.csv..'
 int fie set fie = dbox_compplacement.field_fileName str = '%(path)s/ComponentPlacement.csv'
 int pus exe pus = dbox_compplacement.button_export
